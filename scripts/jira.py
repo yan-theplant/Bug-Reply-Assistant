@@ -385,7 +385,7 @@ def cmd_pending(a):
         _, _, after, target, waiting = analyse_comments(comments, qa)
         if not target or waiting is None:
             continue
-        h = {"key": issue["key"], "summary": f.get("summary"), "status": f["status"]["name"],
+        h = {"key": issue["key"], "url": f"{j.base}/browse/{issue['key']}", "summary": f.get("summary"), "status": f["status"]["name"],
              "priority": (f.get("priority") or {}).get("name"), "waiting_business_days": waiting,
              "from": target["author"], "since": target["created"][:10],
              "mentions": [m["name"] for m in target["mentions"]],

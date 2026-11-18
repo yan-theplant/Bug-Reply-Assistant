@@ -64,13 +64,13 @@ python3 $J pending            # 默认 3 个工作日；QA 指定了 N 就加 --
 | `overdue` ⏰ 已超时 | 等了 ≥ N 个工作日（不管有没有 @ QA） | 放最前面。`mentions_qa: true`（在找 QA）的在前，最多列 5 张；没在找 QA 的另起一行带过，提示「可能不需要你回」 |
 | `waiting` 📥 等你回 | 还没满 N 天，但评论里 @ 了 QA | 全部列出，等得久的在前 |
 
-格式：
+格式（票号一律写成 Markdown 链接，用输出里的 `url`，方便直接点开；「可能不需要你回」那一行的票号也一样）：
 
 ```
 ⏰ 已超时（≥ 3 个工作日）
-  PROJ-456 · 5 天 · Dev A：this issue has been fixed in Android v4.0.0 build 501…
+1. [PROJ-456](https://xxx.atlassian.net/browse/PROJ-456) · 5 天 · Dev A：this issue has been fixed in Android v4.0.0 build 501…
 📥 等你回（未超时）
-  PROJ-457 · 1 天 · Dev B：Fixed in iOS 4.0.0 (822). Please check.
+1. [PROJ-457](https://xxx.atlassian.net/browse/PROJ-457) · 1 天 · Dev B：Fixed in iOS 4.0.0 (822). Please check.
 ```
 - 两组都空就一句话带过，不要列空标题。
 - 「等你回」只收 @ 了 QA 的评论，开发之间的讨论不混进来；超时组不限，因为没人接的票就是这个提醒要抓的。
@@ -91,10 +91,10 @@ python3 $J context <KEY>      # 评论多时加 --all
 4. 票已经是 Done 但回复对象还没人接（例如只有一句 Can be ignored 就被关了）→ 告诉 QA，问要不要补一句回应。
 5. `overdue: true` 时在判断里写一句「已经等了 N 个工作日」。
 
-开场用 2–4 行说清楚：
+开场用 2–4 行说清楚（票号写成链接，用 `context` 输出的 `url`；汇报里出现的其他票号也一样）：
 
 ```
-PROJ-123 · 回复对象：Dev A 10/28「Can be ignored.」（已等 15 个工作日）
+[PROJ-123](https://xxx.atlassian.net/browse/PROJ-123) · 回复对象：Dev A 10/28「Can be ignored.」（已等 15 个工作日）
 类型：可忽略 → 同意用 H，有疑问用 I
 下一步：你觉得这个建议对用户有影响吗？
 ```
