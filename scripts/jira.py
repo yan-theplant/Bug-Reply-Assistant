@@ -429,8 +429,7 @@ def cmd_pending(a):
         token = r.get("nextPageToken")
         if not token or r.get("isLast") or not r.get("issues"):
             break
-    overdue, waiting_list = [], []
-    for issue in issues:
+    def examine(issue):
         f = issue["fields"]
         cm = (f.get("comment") or {})
         comments = cm.get("comments", [])
@@ -440,7 +439,7 @@ def cmd_pending(a):
         assigned_to_me = ((f.get("assignee") or {}).get("accountId") == me)
         handoff = handoff_event(j, issue["key"], me, qa, comments) if assigned_to_me else None
         if not after and not handoff:
-            continue
+            return None
         starts = [parse_time(rows[after[0]]["created"])] if after else []
         if handoff:
             starts.append(parse_time(handoff["at"]))
@@ -467,7 +466,15 @@ def cmd_pending(a):
         else:
             h.update({"from": handoff["by"], "mentions": [],
                       "excerpt": "（没有评论）" + "，".join(handoff["changes"])})
-        if waiting >= a.days:
+        return h
+
+    # Per-ticket reads (comments, changelog) are independent: run them in parallel.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        results = [h for h in ex.map(examine, issues) if h]
+    overdue, waiting_list = [], []
+    for h in results:
+        if h["waiting_business_days"] >= a.days:
             overdue.append(h)
         elif h["for_qa"]:
             waiting_list.append(h)
