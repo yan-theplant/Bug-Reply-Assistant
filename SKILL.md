@@ -192,7 +192,7 @@ python3 $J relink <KEY> --other <KEY2> --remove-blocks --add-relates
 | 情况 | 话术 | 默认后续动作 |
 |---|---|---|
 | 验证通过 | A | 状态 → Done |
-| 验证没过 / 部分修复 | C / D | 指派回开发；项目有退回状态（Reopened 等）就一起改 |
+| 验证没过 / 部分修复 | C / D | 指派回开发 + 状态 → **Open**（项目没有 Open 就用 Reopened，都没有就列出可选项问 QA） |
 | 复现不了，先关 | M | 状态 → Done |
 | 接受可忽略 / 不修 / 预期行为（PM 已在票上确认） | H | 状态 → Done |
 | 追问理由 / 请 PM 确认 | I / J / J2 | 指派给被问的人，状态不动 |
