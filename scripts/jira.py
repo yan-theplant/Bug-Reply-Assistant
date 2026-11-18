@@ -253,7 +253,10 @@ def adf_mentions(node, out=None):
 
 
 def analyse_comments(comments, qa):
-    """Find the reply target: first non-QA comment after QA's last comment."""
+    """Comments after QA's last comment are unanswered. The reply target is the LATEST unanswered
+    comment that @-mentions a QA member (else the latest unanswered one): later comments supersede
+    earlier ones (e.g. a design note, then "fixed in build 508, please review"). The wait is counted
+    from the FIRST unanswered comment, i.e. how long QA has been silent."""
     rows = []
     for c in comments:
         acc = (c.get("author") or {}).get("accountId", "")
@@ -268,8 +271,9 @@ def analyse_comments(comments, qa):
         })
     last_qa = max((i for i, r in enumerate(rows) if r["is_qa"]), default=-1)
     after = [i for i in range(last_qa + 1, len(rows)) if not rows[i]["is_qa"]]
-    target = rows[after[0]] if after else None
-    waiting = business_days_since(parse_time(target["created"])) if target else None
+    to_qa = [i for i in after if any(m.get("accountId") in qa for m in rows[i]["mentions"])]
+    target = rows[(to_qa or after)[-1]] if after else None
+    waiting = business_days_since(parse_time(rows[after[0]]["created"])) if after else None
     return rows, last_qa, after, target, waiting
 
 
@@ -350,7 +354,8 @@ def cmd_context(a):
         "comments": [dict(r, index=rows.index(r), text=r["text"][:2000]) for r in shown],
         "last_qa_comment_index": last_qa,
         "reply_target": dict(target, index=rows.index(target)) if target else None,
-        "later_non_qa_comment_indexes": after[1:],
+        "unanswered_comment_indexes": after,
+        "unanswered_since": rows[after[0]]["created"][:10] if after else None,
         "waiting_business_days": waiting,
         "overdue": waiting is not None and waiting >= a.days,
         "overdue_threshold_days": a.days,
@@ -387,7 +392,7 @@ def cmd_pending(a):
             continue
         h = {"key": issue["key"], "url": f"{j.base}/browse/{issue['key']}", "summary": f.get("summary"), "status": f["status"]["name"],
              "priority": (f.get("priority") or {}).get("name"), "waiting_business_days": waiting,
-             "from": target["author"], "since": target["created"][:10],
+             "from": target["author"], "since": target["created"][:10], "unanswered_count": len(after),
              "mentions": [m["name"] for m in target["mentions"]],
              "mentions_qa": any(m["accountId"] in qa for m in target["mentions"]),
              "excerpt": target["text"][:140].replace("\n", " ")}

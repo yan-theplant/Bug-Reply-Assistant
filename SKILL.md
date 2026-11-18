@@ -82,10 +82,11 @@ python3 $J pending            # 默认 3 个工作日；QA 指定了 N 就加 --
 ```bash
 python3 $J context <KEY>      # 评论多时加 --all
 ```
-输出里要用的：`reply_target`（QA 最后一次发言之后的第一条非 QA 评论，就是要回的那条）、`later_non_qa_comment_indexes`（之后还有别人说话）、
-`waiting_business_days` / `overdue`、`platform_hints`、`links`、`fixVersions`、`transitions`、`reporter`。
+输出里要用的：`reply_target`（要回的那条：QA 最后一次发言之后，**最新**一条 @ 了 QA 的非 QA 评论；没有 @ QA 的就取最新一条）、
+`unanswered_comment_indexes`（QA 最后一次发言之后的所有非 QA 评论）、`waiting_business_days` / `overdue`（从第一条没人回的评论算起）、`platform_hints`、`links`、`fixVersions`、`transitions`、`reporter`。
 
-1. 按 [`reply-types.md`](references/reply-types.md) 判类型。只看文字，不看状态。之后还有别的非 QA 评论时，把它们一起读，以最新的意图为准。
+1. 按 [`reply-types.md`](references/reply-types.md) 判类型。只看文字，不看状态。`unanswered_comment_indexes` 里有多条时全部读一遍：
+   后面的评论常常取代前面的（例如先是设计说明，再是「build 508 修好了，请检查」），以 `reply_target` 为准，前面的作为背景。
 2. 判断是不是**客户票**（规则在 reply-types.md 末尾），拿不准就问一句。
 3. 数轮次：QA 和对方就同一个问题已经来回两轮还没结论 → **不起草第三轮**，建议转 Slack 或拉上 PM。
 4. 票已经是 Done 但回复对象还没人接（例如只有一句 Can be ignored 就被关了）→ 告诉 QA，问要不要补一句回应。
