@@ -58,14 +58,28 @@ python3 $J whoami
      token 在 https://id.atlassian.com/manage-profile/security/api-tokens 生成。
 - 退出码 3（`AUTH_401/403`）：token 失效，同上重新 setup。不要重试。
 
-## 第 1 步：待回复提醒（每个会话第一次调用时做）
+## 第 1 步：待回复清单（每个会话第一次调用时做）
 
 ```bash
 python3 $J pending            # 默认 3 个工作日；QA 指定了 N 就加 --days N
 ```
-扫 QA 自己经办 / 报告 / 关注、还没关的票，列出最后一条非 QA 评论已经等了 ≥ N 个工作日、之后 QA 没回过的票。
-- 有结果就在开头用一小段列出来（最多 5 张，等得久的在前；`mentions_qa: true` 的排前面，那是在找 QA 的），格式：
-  `PROJ-456 · 等了 5 个工作日 · Dev A：this issue has been fixed in Android v4.0.0 build 501…`
+扫 QA 自己经办 / 报告 / 关注、还没关的票，找出最后一条非 QA 评论之后 QA 还没回过的票，分两组输出：
+
+| 组 | 条件 | 怎么展示 |
+|---|---|---|
+| `overdue` ⏰ 已超时 | 等了 ≥ N 个工作日（不管有没有 @ QA） | 放最前面。`mentions_qa: true`（在找 QA）的在前，最多列 5 张；没在找 QA 的另起一行带过，提示「可能不需要你回」 |
+| `waiting` 📥 等你回 | 还没满 N 天，但评论里 @ 了 QA | 全部列出，等得久的在前 |
+
+格式：
+
+```
+⏰ 已超时（≥ 3 个工作日）
+  PROJ-456 · 5 天 · Dev A：this issue has been fixed in Android v4.0.0 build 501…
+📥 等你回（未超时）
+  PROJ-457 · 1 天 · Dev B：Fixed in iOS 4.0.0 (822). Please check.
+```
+- 两组都空就一句话带过，不要列空标题。
+- 「等你回」只收 @ 了 QA 的评论，开发之间的讨论不混进来；超时组不限，因为没人接的票就是这个提醒要抓的。
 - 只提醒，不自动处理。QA 说「回一下第二张」就对那张走下面的流程。
 - 只有一句「Can be ignored.」没人接、客户等录屏、范围问题 20 天没人答，本质都是没人回，这一步就是为了它们。
 

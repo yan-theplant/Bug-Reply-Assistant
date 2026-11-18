@@ -5,7 +5,8 @@ Subcommands
   setup       --site S --email E            save credentials (token read from stdin or $JIRA_TOKEN)
   whoami                                    check that the credentials work
   context     KEY [--days N]                ticket + comments (QA / non-QA) + reply target + transitions, as JSON
-  pending     [--days N] [--limit M]        tickets whose last non-QA comment has waited >= N business days
+  pending     [--days N] [--limit M]        overdue: last non-QA comment waited >= N business days;
+                                            waiting: not overdue yet but addressed to QA
   post        KEY --body-file F [--attach FILE ...]   post a comment (wiki markup), embed media left-aligned at real size
   transition  KEY --to NAME                 move to the transition / status whose name matches NAME
   assign      KEY --account-id ID           assign (use "none" to unassign)
@@ -374,7 +375,7 @@ def cmd_pending(a):
         token = r.get("nextPageToken")
         if not token or r.get("isLast") or not r.get("issues"):
             break
-    hits = []
+    overdue, waiting_list = [], []
     for issue in issues:
         f = issue["fields"]
         cm = (f.get("comment") or {})
@@ -382,15 +383,24 @@ def cmd_pending(a):
         if cm.get("total", 0) > len(comments):
             comments = all_comments(j, issue["key"])
         _, _, after, target, waiting = analyse_comments(comments, qa)
-        if target and waiting is not None and waiting >= a.days:
-            hits.append({"key": issue["key"], "summary": f.get("summary"), "status": f["status"]["name"],
-                         "priority": (f.get("priority") or {}).get("name"), "waiting_business_days": waiting,
-                         "from": target["author"], "since": target["created"][:10],
-                         "mentions": [m["name"] for m in target["mentions"]],
-                         "mentions_qa": any(m["accountId"] in qa for m in target["mentions"]),
-                         "excerpt": target["text"][:140].replace("\n", " ")})
-    hits.sort(key=lambda h: -h["waiting_business_days"])
-    print(json.dumps({"threshold_days": a.days, "scanned": len(issues), "overdue": hits},
+        if not target or waiting is None:
+            continue
+        h = {"key": issue["key"], "summary": f.get("summary"), "status": f["status"]["name"],
+             "priority": (f.get("priority") or {}).get("name"), "waiting_business_days": waiting,
+             "from": target["author"], "since": target["created"][:10],
+             "mentions": [m["name"] for m in target["mentions"]],
+             "mentions_qa": any(m["accountId"] in qa for m in target["mentions"]),
+             "excerpt": target["text"][:140].replace("\n", " ")}
+        if waiting >= a.days:
+            overdue.append(h)
+        elif h["mentions_qa"]:
+            # Not overdue yet, but the comment is addressed to QA: show it as "waiting on you".
+            waiting_list.append(h)
+    # Comments addressed to QA first, then the longest wait.
+    overdue.sort(key=lambda h: (not h["mentions_qa"], -h["waiting_business_days"]))
+    waiting_list.sort(key=lambda h: -h["waiting_business_days"])
+    print(json.dumps({"threshold_days": a.days, "scanned": len(issues),
+                      "overdue": overdue, "waiting": waiting_list},
                      ensure_ascii=False, indent=1))
 
 
