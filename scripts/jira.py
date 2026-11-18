@@ -563,6 +563,14 @@ def cmd_post(a):
     j = Jira()
     key = a.key.upper()
     text = Path(a.body_file).expanduser().read_text().rstrip()
+    # Wiki markup folds a line that directly follows a list item into that item. End lists with a blank line.
+    lines, out = text.split("\n"), []
+    is_item = lambda l: bool(re.match(r"^\s*([-*#]+)\s", l))
+    for i, line in enumerate(lines):
+        out.append(line)
+        if is_item(line) and i + 1 < len(lines) and lines[i + 1].strip() and not is_item(lines[i + 1]):
+            out.append("")
+    text = "\n".join(out)
     existing = {x["filename"].lower() for x in
                 j.get(f"/rest/api/3/issue/{key}", fields="attachment")["fields"].get("attachment", [])}
     tmp = tempfile.mkdtemp(prefix="bra-")
