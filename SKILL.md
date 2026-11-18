@@ -1,15 +1,9 @@
 ---
 name: bug-reply-assistant
 description: |
-  缺陷回复助手（KR2 Skill 4）：开发、PM 或客户在 Jira 上回复后，判断 QA 下一步做什么，起草英文回复，
-  过一道分级检查（环境 / build / 预期结果必须有），QA 确认一次后发评论、内嵌截图录屏，并顺带关票、
-  转回开发、改链接。只按评论文字分类，不看状态。团队通用，任意项目都能用。
-  v1 做：验证结论（通过 / 没过 / 部分修复 / 测试完成）、可忽略、延期 / 去 blocks、无法复现，
-  「预期行为」只出向 PM 提问的句子；另外提醒等了超过 3 个工作日还没人回的票。
-  触发：「回一下 PROJ-123」「这张票怎么回」「开发说修好了，帮我回复 / 关票」「验证过了帮我写评论」
-  「没过，转回开发」「开发说 can be ignored」「开发说是预期行为」「开发说复现不了」「去掉 blocks」
-  「看看我有哪些票没回」「哪些票等太久了」「bug reply」「reply to this ticket」。
-  区分：新开 bug 票 → bug-report-formatter。
+  回复 Jira 上开发 / PM / 客户的评论：起草英文回复，检查环境、build、预期结果，确认后发评论并关票或转回开发；列出等你回的票。
+  触发：「回一下 PROJ-123」「这张票怎么回」「验过了帮我回复」「没过，转回开发」「开发说 can be ignored / 预期行为 / 复现不了」
+  「去掉 blocks」「看看我有哪些票没回」「reply to this ticket」。新开 bug 票用 bug-report-formatter。
 ---
 
 # Bug Reply Assistant（缺陷回复助手）
