@@ -317,6 +317,8 @@ def cmd_context(a):
     comments = all_comments(j, key)
     rows, last_qa, after, target, waiting = analyse_comments(comments, qa)
     trans = j.get(f"/rest/api/3/issue/{key}/transitions").get("transitions", [])
+    me = j.get("/rest/api/3/myself")["accountId"]
+    handoff = handoff_event(j, key, me, qa, comments) if (f.get("assignee") or {}).get("accountId") == me else None
     desc = adf_text(f.get("description")).strip()
 
     def person(p):
@@ -359,20 +361,67 @@ def cmd_context(a):
         "waiting_business_days": waiting,
         "overdue": waiting is not None and waiting >= a.days,
         "overdue_threshold_days": a.days,
+        "handoff": handoff,
         "transitions": [{"id": t["id"], "name": t["name"], "to": t["to"]["name"]} for t in trans],
     }
     print(json.dumps(out, ensure_ascii=False, indent=1))
 
 
+def handoff_event(j, key, me, qa, comments):
+    """Latest non-QA status / assignee change on a ticket assigned to me, made after QA's last activity
+    (last QA comment or last QA change). Catches "dev moved it to QA and assigned it to me, no comment"."""
+    first = j.get(f"/rest/api/3/issue/{key}/changelog", maxResults=1)
+    total = first.get("total", 0)
+    if not total:
+        return None
+    hist = j.get(f"/rest/api/3/issue/{key}/changelog", startAt=max(0, total - 50), maxResults=50).get("values", [])
+    qa_times = [parse_time(c.get("created", "")) for c in comments if (c.get("author") or {}).get("accountId") in qa]
+    qa_times += [parse_time(h["created"]) for h in hist if (h.get("author") or {}).get("accountId") in qa]
+    last_qa = max([t for t in qa_times if t], default=None)
+    def changes_of(h):
+        out = []
+        for it in h.get("items", []):
+            if it.get("field") == "assignee" and it.get("to") == me:
+                out.append(f"assignee → {it.get('toString')}")
+            elif it.get("field") == "status":
+                out.append(f"{it.get('fromString')} → {it.get('toString')}")
+        return out
+
+    found = None
+    for h in reversed(hist):
+        who = (h.get("author") or {})
+        t = parse_time(h["created"])
+        if last_qa and t and t <= last_qa:
+            break
+        if who.get("accountId") in qa:
+            continue
+        ch = changes_of(h)
+        if not ch:
+            continue
+        if found is None:
+            found = {"by": who.get("displayName"), "byId": who.get("accountId"), "at": h["created"],
+                     "t": t, "changes": ch}
+        elif who.get("accountId") == found["byId"] and t and found["t"] - t <= dt.timedelta(minutes=10):
+            # Same person, same hand-off (status + assignee are often two changelog entries).
+            found["changes"] = ch + found["changes"]
+            found["at"] = h["created"]
+        else:
+            break
+    if found:
+        found.pop("t"); found.pop("byId")
+    return found
+
+
 def cmd_pending(a):
     j = Jira()
     qa = qa_members(j)
+    me = j.get("/rest/api/3/myself")["accountId"]
     jql = a.jql or ("(assignee = currentUser() OR reporter = currentUser() OR watcher = currentUser()) "
                     "AND statusCategory != Done AND updated >= -60d ORDER BY updated DESC")
     issues, token = [], None
     while len(issues) < a.limit:
         q = {"jql": jql, "maxResults": min(50, a.limit - len(issues)),
-             "fields": ["summary", "status", "priority", "comment"]}
+             "fields": ["summary", "status", "priority", "comment", "assignee"]}
         if token:
             q["nextPageToken"] = token
         _, r = j.req("POST", "/rest/api/3/search/jql", q)
@@ -387,22 +436,43 @@ def cmd_pending(a):
         comments = cm.get("comments", [])
         if cm.get("total", 0) > len(comments):
             comments = all_comments(j, issue["key"])
-        _, _, after, target, waiting = analyse_comments(comments, qa)
-        if not target or waiting is None:
+        rows, _, after, target, _ = analyse_comments(comments, qa)
+        assigned_to_me = ((f.get("assignee") or {}).get("accountId") == me)
+        handoff = handoff_event(j, issue["key"], me, qa, comments) if assigned_to_me else None
+        if not after and not handoff:
             continue
-        h = {"key": issue["key"], "url": f"{j.base}/browse/{issue['key']}", "summary": f.get("summary"), "status": f["status"]["name"],
-             "priority": (f.get("priority") or {}).get("name"), "waiting_business_days": waiting,
-             "from": target["author"], "since": target["created"][:10], "unanswered_count": len(after),
-             "mentions": [m["name"] for m in target["mentions"]],
-             "mentions_qa": any(m["accountId"] in qa for m in target["mentions"]),
-             "excerpt": target["text"][:140].replace("\n", " ")}
+        starts = [parse_time(rows[after[0]]["created"])] if after else []
+        if handoff:
+            starts.append(parse_time(handoff["at"]))
+        since = min(t for t in starts if t)
+        waiting = business_days_since(since)
+        mentions_qa = bool(target) and any(m["accountId"] in qa for m in target["mentions"])
+        # Why this ticket is waiting on QA: a comment @-mentions QA, it was handed to me, or a dev
+        # commented on a ticket that is in my name.
+        reasons = []
+        if mentions_qa:
+            reasons.append("mentions_qa")
+        if handoff:
+            reasons.append("handed_to_you")
+        if assigned_to_me and after and not mentions_qa:
+            reasons.append("comment_on_your_ticket")
+        h = {"key": issue["key"], "url": f"{j.base}/browse/{issue['key']}", "summary": f.get("summary"),
+             "status": f["status"]["name"], "priority": (f.get("priority") or {}).get("name"),
+             "waiting_business_days": waiting, "since": since.astimezone().strftime("%Y-%m-%d"),
+             "for_qa": bool(reasons), "reasons": reasons, "mentions_qa": mentions_qa,
+             "unanswered_count": len(after), "handoff": handoff}
+        if target:
+            h.update({"from": target["author"], "mentions": [m["name"] for m in target["mentions"]],
+                      "excerpt": target["text"][:140].replace("\n", " ")})
+        else:
+            h.update({"from": handoff["by"], "mentions": [],
+                      "excerpt": "（没有评论）" + "，".join(handoff["changes"])})
         if waiting >= a.days:
             overdue.append(h)
-        elif h["mentions_qa"]:
-            # Not overdue yet, but the comment is addressed to QA: show it as "waiting on you".
+        elif h["for_qa"]:
             waiting_list.append(h)
-    # Comments addressed to QA first, then the longest wait.
-    overdue.sort(key=lambda h: (not h["mentions_qa"], -h["waiting_business_days"]))
+    # Tickets waiting on QA first, then the longest wait.
+    overdue.sort(key=lambda h: (not h["for_qa"], -h["waiting_business_days"]))
     waiting_list.sort(key=lambda h: -h["waiting_business_days"])
     print(json.dumps({"threshold_days": a.days, "scanned": len(issues),
                       "overdue": overdue, "waiting": waiting_list},

@@ -57,12 +57,22 @@ python3 $J whoami
 ```bash
 python3 $J pending            # 默认 3 个工作日；QA 指定了 N 就加 --days N
 ```
-扫 QA 自己经办 / 报告 / 关注、还没关的票，找出最后一条非 QA 评论之后 QA 还没回过的票，分两组输出：
+扫 QA 自己经办 / 报告 / 关注、还没关的票，找出 QA 最后一次动作之后有人在等 QA 的票。「在等 QA」（`for_qa: true`）有三种，写在 `reasons` 里：
+
+| `reasons` | 意思 |
+|---|---|
+| `mentions_qa` | 没人回的评论里 @ 了 QA |
+| `handed_to_you` | 开发把票转给了你：指派给你，或在你名下改了状态（如改成 QA/Internal Review），**不管有没有写评论** |
+| `comment_on_your_ticket` | 票在你名下，开发写了评论但没 @ 你 |
+
+等待天数从第一条没人回的评论或转给你的那一刻算起，取早的那个。分两组输出：
 
 | 组 | 条件 | 怎么展示 |
 |---|---|---|
-| `overdue` ⏰ 已超时 | 等了 ≥ N 个工作日（不管有没有 @ QA） | 放最前面。`mentions_qa: true`（在找 QA）的在前，最多列 5 张；没在找 QA 的另起一行带过，提示「可能不需要你回」 |
-| `waiting` 📥 等你回 | 还没满 N 天，但评论里 @ 了 QA | 全部列出，等得久的在前 |
+| `overdue` ⏰ 已超时 | 等了 ≥ N 个工作日（不管是不是在等 QA） | 放最前面。`for_qa: true` 的在前，最多列 5 张；`for_qa: false` 的另起一行带过，提示「可能不需要你回」 |
+| `waiting` 📥 等你回 | 还没满 N 天，`for_qa: true` | 全部列出，等得久的在前 |
+
+没有评论、只是转给你的票，摘录那一栏是「（没有评论）Open → QA/Internal Review，assignee → 你」，展示时照写，让 QA 知道是被转过来的。
 
 格式（票号一律写成 Markdown 链接，用输出里的 `url`，方便直接点开；「可能不需要你回」那一行的票号也一样）：
 
@@ -73,7 +83,7 @@ python3 $J pending            # 默认 3 个工作日；QA 指定了 N 就加 --
 1. [PROJ-457](https://xxx.atlassian.net/browse/PROJ-457) · 1 天 · Dev B：Fixed in iOS 4.0.0 (822). Please check.
 ```
 - 两组都空就一句话带过，不要列空标题。
-- 「等你回」只收 @ 了 QA 的评论，开发之间的讨论不混进来；超时组不限，因为没人接的票就是这个提醒要抓的。
+- 「等你回」只收在等 QA 的票，开发之间的讨论不混进来；超时组不限，因为没人接的票就是这个提醒要抓的。
 - 只提醒，不自动处理。QA 说「回一下第二张」就对那张走下面的流程。
 - 只有一句「Can be ignored.」没人接、客户等录屏、范围问题 20 天没人答，本质都是没人回，这一步就是为了它们。
 
@@ -87,6 +97,8 @@ python3 $J context <KEY>      # 评论多时加 --all
 
 1. 按 [`reply-types.md`](references/reply-types.md) 判类型。只看文字，不看状态。`unanswered_comment_indexes` 里有多条时全部读一遍：
    后面的评论常常取代前面的（例如先是设计说明，再是「build 508 修好了，请检查」），以 `reply_target` 为准，前面的作为背景。
+   `reply_target` 为空但有 `handoff`（开发没写评论就把票转给了你）→ 按「已修复请验证 / 提测」处理：build 和环境从关联的开发票、
+   `fixVersions`、票标题里找，找不到就在第 3 步问 QA 验的是哪个包。
 2. 判断是不是**客户票**（规则在 reply-types.md 末尾），拿不准就问一句。
 3. 数轮次：QA 和对方就同一个问题已经来回两轮还没结论 → **不起草第三轮**，建议转 Slack 或拉上 PM。
 4. 票已经是 Done 但回复对象还没人接（例如只有一句 Can be ignored 就被关了）→ 告诉 QA，问要不要补一句回应。
