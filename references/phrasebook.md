@@ -1,6 +1,6 @@
 # QA 标准话术库（英文）
 
-回复**一律用英文**。句子以 QA 实际在用的说法为基础，修掉了语法问题。`{ }` 是要替换的内容，换完不能留下任何 `{ }`。
+回复**一律用英文**。**A / M / H 是关票的回复，全文不出现任何 @**（包括句中提到开发的地方，写纯文字名字）；只有模板开头带 `@{…}` 的才 @。句子以 QA 实际在用的说法为基础，修掉了语法问题。`{ }` 是要替换的内容，换完不能留下任何 `{ }`。
 来源：团队的回复话术调研（约 280 张票、380 条回复）。
 
 ## v1 启用的模板
@@ -40,8 +40,9 @@ QA 总票或开发票测完。
 同意开发的判断。**用于「预期行为」时，必须是 PM 已经在票上确认过。**
 
 ```
-Thanks for confirming. As @{dev} confirmed, I'll close this for now and reopen it if it happens again.
+Thanks for confirming. As {dev name} confirmed, I'll close this for now and reopen it if it happens again.
 ```
+- **不 @**：`{dev name}` 写纯文字名字，不要写成 `[~accountid:…]`。
 - "for now" 是保留态度的固定说法，不要删。
 
 ### I — 追问「可忽略」的理由

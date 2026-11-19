@@ -152,7 +152,7 @@ QA 一句话给的结果（如「STG iOS 812 过了，券显示对了」）要�
 ## 第 5 步：起草
 
 - **一律英文。** 句子取自 [`phrasebook.md`](references/phrasebook.md) 的 v1 模板，换完不能留下 `{ }`。顺带修正常见英文错误（表在 phrasebook 末尾）。
-- **要对方接着处理时才 @**：验证没过 / 部分修复、追问、请 PM 确认、补复现条件（C / D / I / J / J2 / L / E）@ 发出回复对象那条评论的人（用 `reply_target.accountId`），不默认 @ 派单的人。**验证通过、复现不了先关、接受可忽略（A / M / H）这类关票的回复不 @**，对方不需要再做什么。E 模板里的 `cc @{QA lead}` 换成团队的 QA 负责人，第一次用时问一句，之后同一会话沿用。要 @ 别人（PM）时用 `python3 $J user <名字>` 查 accountId，有多个同名就问 QA。
+- **要对方接着处理时才 @**：验证没过 / 部分修复、追问、请 PM 确认、补复现条件（C / D / I / J / J2 / L / E）@ 发出回复对象那条评论的人（用 `reply_target.accountId`），不默认 @ 派单的人。**验证通过、复现不了先关、接受可忽略（A / M / H）这类关票的回复不 @**，对方不需要再做什么：草稿里不能有 `[~accountid:`，句中提到人也只写纯文字名字。确认块里写「评论（不 @）」。E 模板里的 `cc @{QA lead}` 换成团队的 QA 负责人，第一次用时问一句，之后同一会话沿用。要 @ 别人（PM）时用 `python3 $J user <名字>` 查 accountId，有多个同名就问 QA。
 - 草稿写成 Jira wiki 语法：@ 写成 `[~accountid:<id>]`，票号直接写（Jira 会自动转链接），链接直接贴 URL。
 - 打回类给两版让 QA 选：**接受**（H / P / M）和**带证据追问**（I / J / L）。
 - 「预期行为」：
@@ -166,7 +166,7 @@ QA 一句话给的结果（如「STG iOS 812 过了，券显示对了」）要�
 
 ```
 评论（不 @）：
-  Thanks for confirming. As @Dev A confirmed, I'll close this for now and reopen it if it happens again.
+  Thanks for confirming. As Dev A confirmed, I'll close this for now and reopen it if it happens again.
 附件：无
 后续动作：
   1. 状态 → Done
@@ -178,7 +178,7 @@ QA 确认后按顺序执行，每步看返回值：
 
 ```bash
 # 1) 发评论（草稿写进 scratchpad 里的文件；附件逐个上传，失败不中断，最后汇报）
-python3 $J post <KEY> --body-file <scratchpad>/reply-<KEY>.txt --attach <文件1> <文件2>
+python3 $J post <KEY> --template <A|C|…> --body-file <scratchpad>/reply-<KEY>.txt --attach <文件1> <文件2>
 # 2) 后续动作，按下表
 python3 $J transition <KEY> --to Done
 python3 $J assign <KEY> --account-id <accountId>
