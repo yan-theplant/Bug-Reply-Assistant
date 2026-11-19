@@ -111,7 +111,7 @@ python3 ~/.claude/skills/bug-reply-assistant/scripts/jira.py stats --since 2026-
 | `AUTH_401` / `AUTH_403` | token 失效或被撤销 | 重新生成 token，再跑一次 setup |
 | `in_qa_group: false` | 你不在 Jira 的 QA 组，或组名不是 `qa` | 找管理员加组，或设 `JIRA_QA_GROUP`；否则 QA / 非 QA 的评论区分会不准 |
 | 视频内嵌后一直 Creating preview | Jira 还在处理，或源文件是 HEVC 且本机没装 ffmpeg | 等十几秒；装 ffmpeg 后重新传 |
-| `post` 退出码 5（`MENTION_ON_CLOSING_REPLY`） | 关票的回复（A / M / H）里有 @ | 去掉 @，句中提到人写纯文字名字 |
+| `post` 退出码 5（`MENTION_ON_CLOSING_REPLY`） | 关票的回复（A / M / H）里有 @ | 默认去掉 @；你确实想 @ 的话跟它说一声，它会加 `--allow-mention` 发出 |
 | `transition` 退出码 4 | 这个项目没有叫这个名字的状态 | 从它列出的可选项里选 |
 
 ## 贡献

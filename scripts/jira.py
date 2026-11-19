@@ -7,7 +7,7 @@ Subcommands
   context     KEY [--days N]                ticket + comments (QA / non-QA) + reply target + transitions, as JSON
   pending     [--days N] [--limit M]        overdue: last non-QA comment waited >= N business days;
                                             waiting: not overdue yet but addressed to QA
-  post        KEY --body-file F [--template A] [--attach FILE ...]   post a comment (wiki markup), embed media left-aligned at real size
+  post        KEY --body-file F [--template A] [--allow-mention] [--attach FILE ...]   post a comment (wiki markup), embed media left-aligned at real size
   transition  KEY --to NAME                 move to the transition / status whose name matches NAME
   assign      KEY --account-id ID           assign (use "none" to unassign)
   relink      KEY --other KEY2 [--remove-blocks] [--add-relates]
@@ -563,8 +563,8 @@ def cmd_post(a):
     j = Jira()
     key = a.key.upper()
     text = Path(a.body_file).expanduser().read_text().rstrip()
-    if (a.template or "").upper() in ("A", "M", "H") and re.search(r"\[~(accountid:)?[^\]]+\]", text):
-        die(f"MENTION_ON_CLOSING_REPLY: template {a.template.upper()} closes the ticket and must not @ anyone; remove the [~…] mention", 5)
+    if (a.template or "").upper() in ("A", "M", "H") and not a.allow_mention and re.search(r"\[~(accountid:)?[^\]]+\]", text):
+        die(f"MENTION_ON_CLOSING_REPLY: template {a.template.upper()} closes the ticket and must not @ anyone; remove the [~…] mention, or pass --allow-mention if QA asked for it", 5)
     # Wiki markup folds a line that directly follows a list item into that item. End lists with a blank line.
     lines, out = text.split("\n"), []
     is_item = lambda l: bool(re.match(r"^\s*([-*#]+)\s", l))
@@ -731,6 +731,7 @@ def main():
     p = sp.add_parser("post"); p.add_argument("key"); p.add_argument("--body-file", required=True)
     p.add_argument("--attach", nargs="*")
     p.add_argument("--template", help="A/C/D/…; closing replies (A, M, H) are refused if the body contains an @mention")
+    p.add_argument("--allow-mention", action="store_true", help="QA explicitly asked to @ someone on a closing reply")
     p.set_defaults(fn=cmd_post)
     p = sp.add_parser("transition"); p.add_argument("key"); p.add_argument("--to", required=True)
     p.set_defaults(fn=cmd_transition)
